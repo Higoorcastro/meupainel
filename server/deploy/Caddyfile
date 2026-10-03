@@ -1,0 +1,8 @@
+# HTTPS automático para o domínio definido em DOMAIN (.env).
+{$DOMAIN} {
+	encode gzip
+	# Sem limite de tamanho de upload aqui (o limite é MAX_UPLOAD_MB no servidor).
+	reverse_proxy signage:3000 {
+		flush_interval -1
+	}
+}

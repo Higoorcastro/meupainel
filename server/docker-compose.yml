@@ -1,0 +1,41 @@
+# Uso:
+#   1. cp .env.example .env   e edite DOMAIN, ADMIN_PASSWORD e PUBLIC_URL
+#   2. docker compose up -d --build
+#
+# O serviço "caddy" emite e renova o certificado HTTPS automaticamente (Let's Encrypt).
+# Se a sua VPS já usa nginx/Apache nas portas 80/443, NÃO suba o caddy:
+#   docker compose up -d --build signage
+# e configure o proxy conforme deploy/nginx-meupainel.conf.
+
+services:
+  signage:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+      PORT: 3000
+    volumes:
+      # Volume nomeado: já nasce com as permissões do usuário do container. Backup: veja README.
+      - signage_data:/data
+    ports:
+      # Exposto só para a própria VPS (o acesso público passa pelo proxy HTTPS).
+      - "127.0.0.1:3000:3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [signage]
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  signage_data:
+  caddy_data:
+  caddy_config:

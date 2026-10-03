@@ -1,0 +1,55 @@
+# =============================================================================
+#  tv-loja — app Android TV (app/) + servidor do painel web (server/)
+# =============================================================================
+
+# ----------------------------------------------------------------------------- Segredos (NUNCA versionar)
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+!debug.keystore
+keystore.properties
+*.pem
+*.key
+server/.publicar.json
+
+# ----------------------------------------------------------------------------- Android / Gradle
+.gradle/
+.kotlin/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+# Necessário para o ./gradlew funcionar em outras máquinas:
+!gradle/wrapper/gradle-wrapper.jar
+
+# ----------------------------------------------------------------------------- Servidor (Node.js)
+node_modules/
+server/data/
+server/backups/
+npm-debug.log*
+
+# ----------------------------------------------------------------------------- Editores / IDEs
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+*.swp
+*~
+
+# ----------------------------------------------------------------------------- Sistema operacional
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ----------------------------------------------------------------------------- Logs e temporários
+*.log
+*.tmp
+.claude/
