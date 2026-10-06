@@ -123,6 +123,17 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px 16px 64px; }
 .media-card.selectable { cursor: pointer; }
 .media-card.selected { outline: 3px solid var(--accent); }
 
+/* Atualização do app */
+.releases-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 12px; align-items: start; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.row:last-child { border-bottom: 0; }
+.row .grow { flex: 1; min-width: 0; }
+.tag { font-size: .72rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.tag.ok { background: #e7f4e8; color: var(--ok); }
+.tag.warn { background: #fff4e0; color: var(--warn); }
+.tag.err { background: #fdecec; color: var(--danger); }
+@media (max-width: 760px) { .releases-layout { grid-template-columns: 1fr; } }
+
 /* Diálogo */
 dialog { border: 0; border-radius: var(--radius); padding: 0; width: min(920px, 94vw); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 dialog::backdrop { background: rgba(10, 20, 35, .45); }

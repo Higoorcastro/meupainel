@@ -4,6 +4,7 @@ import com.tvloja.signage.domain.model.ImageScaleMode
 import com.tvloja.signage.domain.model.MediaType
 import com.tvloja.signage.domain.model.RemoteMediaSpec
 import com.tvloja.signage.domain.model.TransitionType
+import com.tvloja.signage.domain.repository.AppUpdateOffer
 import com.tvloja.signage.domain.repository.DeviceReport
 import com.tvloja.signage.domain.repository.RemoteSettings
 import com.tvloja.signage.domain.repository.ServerSyncResponse
@@ -48,6 +49,7 @@ class SignageServerClient(private val client: OkHttpClient) : SignageServerApi {
     private fun reportJson(r: DeviceReport) = JSONObject().apply {
         put("model", r.model)
         put("appVersion", r.appVersion)
+        put("appVersionCode", r.appVersionCode)
         put("status", JSONObject().apply {
             put("playback", JSONObject().apply {
                 put("status", r.playbackStatus)
@@ -62,6 +64,12 @@ class SignageServerClient(private val client: OkHttpClient) : SignageServerApi {
             put("downloadsPending", r.downloadsPending)
             put("localItems", r.localItems)
             put("uptimeSec", r.uptimeSec)
+            put("update", JSONObject().apply {
+                put("state", r.updateState)
+                put("version", r.updateVersion ?: JSONObject.NULL)
+                put("progress", r.updateProgress ?: JSONObject.NULL)
+                put("error", r.updateError ?: JSONObject.NULL)
+            })
         })
     }
 
@@ -90,6 +98,7 @@ class SignageServerClient(private val client: OkHttpClient) : SignageServerApi {
                     }
                 }
                 val s = json.optJSONObject("settings")
+                val u = json.optJSONObject("appUpdate")
                 ServerSyncResponse.Approved(
                     tvName = json.optString("name"),
                     playlist = specs.distinctBy { it.remoteId },
@@ -99,6 +108,15 @@ class SignageServerClient(private val client: OkHttpClient) : SignageServerApi {
                         transitionDurationMs = s?.takeIf { it.has("transitionDurationMs") }?.optInt("transitionDurationMs"),
                         videoMuted = s?.takeIf { it.has("videoMuted") }?.optBoolean("videoMuted"),
                     ),
+                    appUpdate = u?.takeIf { it.optInt("versionCode") > 0 && it.optString("sha256").length == 64 }?.let {
+                        AppUpdateOffer(
+                            versionCode = it.optInt("versionCode"),
+                            versionName = it.optString("versionName"),
+                            sizeBytes = it.optLong("size"),
+                            sha256 = it.optString("sha256").lowercase(),
+                            downloadPath = it.optString("downloadPath"),
+                        )
+                    },
                     command = json.optString("command").takeIf { it.isNotBlank() && it != "null" },
                 )
             }

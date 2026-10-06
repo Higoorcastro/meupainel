@@ -52,6 +52,9 @@ import com.tvloja.signage.player.PlaybackStatus
 import com.tvloja.signage.security.AdminConfig
 import com.tvloja.signage.sync.ServerState
 import com.tvloja.signage.sync.ServerStatus
+import com.tvloja.signage.update.UpdateState
+import com.tvloja.signage.update.UpdateStatus
+import com.tvloja.signage.BuildConfig
 import com.tvloja.signage.ui.components.ConfirmDialog
 import com.tvloja.signage.ui.components.InfoLine
 import com.tvloja.signage.ui.components.LABEL_WIDTH
@@ -102,6 +105,7 @@ fun AdminScreen(
     val status by viewModel.status.collectAsStateWithLifecycle()
     val logs by viewModel.logs.collectAsStateWithLifecycle()
     val server by viewModel.server.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
 
     var tab by rememberSaveable { mutableStateOf(AdminTab.MEDIA) }
     var dialog by remember { mutableStateOf<AdminDialog?>(null) }
@@ -191,7 +195,7 @@ fun AdminScreen(
                 ) {
                     when (tab) {
                         AdminTab.MEDIA -> MediaTab(selected, items.size, viewModel, onDialog = { dialog = it })
-                        AdminTab.SETTINGS -> SettingsTab(settings, status, server, viewModel, onDialog = { dialog = it })
+                        AdminTab.SETTINGS -> SettingsTab(settings, status, server, update, viewModel, onDialog = { dialog = it })
                         AdminTab.STATUS -> StatusTab(playback, items, settings, status, server)
                         AdminTab.LOGS -> LogsTab(logs)
                     }
@@ -324,6 +328,7 @@ private fun SettingsTab(
     settings: SignageSettings,
     status: DeviceStatus,
     server: ServerState,
+    update: UpdateState,
     vm: AdminViewModel,
     onDialog: (AdminDialog) -> Unit,
 ) {
@@ -332,6 +337,9 @@ private fun SettingsTab(
 
         SectionTitle("Servidor central (painel web)")
         ServerSection(server, vm, onDialog)
+
+        SectionTitle("Atualização do app")
+        UpdateSection(update, vm)
 
         SectionTitle("Imagens")
         OptionRow(
@@ -605,3 +613,29 @@ private fun ServerSection(server: ServerState, vm: AdminViewModel, onDialog: (Ad
 /** "123456" → "123 456" (mais fácil de ler na TV). */
 fun formatPairingCode(code: String): String =
     if (code.length == 6) "${code.substring(0, 3)} ${code.substring(3)}" else code
+
+@Composable
+private fun UpdateSection(update: UpdateState, vm: AdminViewModel) {
+    InfoLine("Versão instalada", "${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})")
+    val (label, color) = when (update.status) {
+        UpdateStatus.IDLE -> "Nenhuma atualização pendente" to SignageColors.TextMuted
+        UpdateStatus.DOWNLOADING -> "Baixando ${update.versionName.orEmpty()} ${update.progress?.let { "($it%)" }.orEmpty()}" to SignageColors.Accent
+        UpdateStatus.READY -> "Versão ${update.versionName.orEmpty()} pronta para instalar" to SignageColors.Ok
+        UpdateStatus.INSTALLING -> "Instalando ${update.versionName.orEmpty()} — aperte ← e OK (Atualizar)" to SignageColors.Warn
+        UpdateStatus.ERROR -> "Falha no download" to SignageColors.Error
+    }
+    InfoLine("Status", label, color)
+    update.error?.let { InfoLine("Detalhe", it, SignageColors.Warn) }
+    val canInstall = vm.canInstallUpdates()
+    if (!canInstall) {
+        InfoLine("Permissão", "Falta permitir \"instalar apps desconhecidos\"", SignageColors.Warn)
+    }
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(top = 4.dp),
+    ) {
+        if (update.status == UpdateStatus.READY) TvButton("⬆ Instalar agora", vm::installUpdate)
+        if (!canInstall) TvButton("Permitir instalação", vm::openInstallPermission)
+    }
+}

@@ -19,6 +19,7 @@ import com.tvloja.signage.domain.repository.PlaylistRepository
 import com.tvloja.signage.domain.repository.SettingsRepository
 import com.tvloja.signage.domain.repository.SignageServerApi
 import com.tvloja.signage.sync.ServerSyncManager
+import com.tvloja.signage.update.AppUpdater
 import com.tvloja.signage.domain.usecase.AddRemoteMediaUseCase
 import com.tvloja.signage.domain.usecase.DeleteMediaUseCase
 import com.tvloja.signage.domain.usecase.ImportLocalMediaUseCase
@@ -94,9 +95,15 @@ class AppContainer(val app: Application) {
     val availabilityChecker = MediaAvailabilityChecker(app)
     val playlistPlayer = PlaylistPlayer(appScope, availabilityChecker, playbackReporter)
 
+    /** Atualização remota do app (APK enviado pelo painel web). */
+    val appUpdater by lazy { AppUpdater(app, appScope, okHttpClient) }
+
     /** Sincronização com o servidor central (painel web). */
     val serverSync by lazy {
-        ServerSyncManager(app, appScope, serverApi, settingsRepository, playlistRepository, mediaFileStore, workScheduler, playlistPlayer)
+        ServerSyncManager(
+            app, appScope, serverApi, settingsRepository, playlistRepository,
+            mediaFileStore, workScheduler, playlistPlayer, appUpdater,
+        )
     }
 
     /** Cache em disco para vídeos remotos (instância única por diretório — exigência do SimpleCache). */

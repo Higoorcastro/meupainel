@@ -15,6 +15,10 @@ export const config = {
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB || 2048),
   /** Uma TV é considerada online se sincronizou nos últimos N segundos. */
   onlineWindowSec: Number(process.env.ONLINE_WINDOW_SEC || 180),
+  /** Pacote do app das TVs: APKs de outro app são recusados no upload. */
+  appPackage: process.env.APP_PACKAGE || 'com.tvloja.signage',
 };
 
 export const mediaDir = path.join(config.dataDir, 'media');
+/** APKs de atualização do app (não são públicos: só TVs autenticadas baixam). */
+export const releasesDir = path.join(config.dataDir, 'releases');

@@ -1,9 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { config, mediaDir } from './config.js';
+import { config, mediaDir, releasesDir } from './config.js';
 
 fs.mkdirSync(mediaDir, { recursive: true });
+fs.mkdirSync(releasesDir, { recursive: true });
 
 export const db = new DatabaseSync(path.join(config.dataDir, 'signage.db'));
 db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
@@ -57,6 +58,20 @@ const migrations = [
     last_ip       TEXT,
     created_at    INTEGER NOT NULL
   );
+  `,
+  // 2 — atualização remota do app das TVs
+  `
+  CREATE TABLE app_releases (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    version_code  INTEGER NOT NULL UNIQUE,
+    version_name  TEXT NOT NULL,
+    package_name  TEXT NOT NULL,
+    filename      TEXT NOT NULL UNIQUE,
+    size          INTEGER NOT NULL,
+    sha256        TEXT NOT NULL,
+    created_at    INTEGER NOT NULL
+  );
+  ALTER TABLE devices ADD COLUMN app_version_code INTEGER;
   `,
 ];
 

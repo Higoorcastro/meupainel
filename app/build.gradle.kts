@@ -14,8 +14,8 @@ android {
         // API 24 (Android 7.0) cobre praticamente todas as TVs TCL com Android TV / Google TV.
         minSdk = 24
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
     }
 
     buildTypes {

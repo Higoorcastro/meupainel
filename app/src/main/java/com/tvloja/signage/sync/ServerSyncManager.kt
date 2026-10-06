@@ -10,6 +10,7 @@ import com.tvloja.signage.domain.repository.ServerSyncResponse
 import com.tvloja.signage.domain.repository.SettingsRepository
 import com.tvloja.signage.domain.repository.SignageServerApi
 import com.tvloja.signage.player.PlaylistPlayer
+import com.tvloja.signage.update.AppUpdater
 import com.tvloja.signage.util.AppLogger
 import com.tvloja.signage.util.DeviceInfo
 import com.tvloja.signage.work.WorkScheduler
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -66,6 +68,7 @@ class ServerSyncManager(
     private val fileStore: MediaFileStore,
     private val scheduler: WorkScheduler,
     private val player: PlaylistPlayer,
+    private val appUpdater: AppUpdater,
 ) {
     companion object {
         const val CONNECTED_INTERVAL_MS = 60_000L
@@ -90,6 +93,10 @@ class ServerSyncManager(
     private var backoffMs = MIN_BACKOFF_MS
 
     fun start(serverUrls: Flow<String>) {
+        // Mudou o estado da atualização (baixando → pronta → instalando/erro)? Avisa o painel na hora.
+        scope.launch {
+            appUpdater.state.map { it.status to it.error }.distinctUntilChanged().drop(1).collect { syncNow() }
+        }
         scope.launch {
             serverUrls.map { it.trim() }.distinctUntilChanged().collectLatest { url ->
                 if (url.isEmpty()) {
@@ -130,6 +137,11 @@ class ServerSyncManager(
                 }
                 is ServerSyncResponse.Approved -> {
                     apply(response)
+                    appUpdater.onOffer(response.appUpdate, url, deviceId, token)
+                    if (response.command == "update_app") {
+                        AppLogger.i("Comando do painel: instalar atualização do app")
+                        appUpdater.requestInstall()
+                    }
                     if (_state.value.status != ServerStatus.CONNECTED) AppLogger.i("Conectado ao servidor como \"${response.tvName}\"")
                     _state.value = ServerState(ServerStatus.CONNECTED, url, tvName = response.tvName, lastSyncAt = System.currentTimeMillis())
                     backoffMs = MIN_BACKOFF_MS
@@ -170,7 +182,7 @@ class ServerSyncManager(
                 AppLogger.i("Comando do painel: reiniciar playlist")
                 player.restart()
             }
-            "sync_now", null -> Unit
+            "sync_now", "update_app", null -> Unit
             else -> AppLogger.w("Comando desconhecido do painel: ${response.command}")
         }
     }
@@ -188,9 +200,11 @@ class ServerSyncManager(
         val playback = player.state.value
         val items = playlistRepository.getAll()
         val storage = DeviceInfo.internalStorage(context)
+        val update = appUpdater.state.value
         return DeviceReport(
             model = DeviceInfo.model(),
             appVersion = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE,
             playbackStatus = playback.status.label,
             currentMedia = playback.current?.name,
             index = playback.index,
@@ -202,6 +216,10 @@ class ServerSyncManager(
             downloadsPending = items.count { it.remoteId != null && it.isStreaming },
             localItems = items.count { it.remoteId == null },
             uptimeSec = (SystemClock.elapsedRealtime() - startedAt) / 1000,
+            updateState = update.status.name,
+            updateVersion = update.versionName,
+            updateProgress = update.progress,
+            updateError = update.error,
         )
     }
 }

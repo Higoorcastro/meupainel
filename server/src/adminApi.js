@@ -4,13 +4,14 @@ import path from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import express from 'express';
-import { config, mediaDir } from './config.js';
+import { config, mediaDir, releasesDir } from './config.js';
 import { db, now, tx } from './db.js';
 import {
   checkPassword, clearLoginFailures, clearSessionCookie, isAuthenticated, loginAllowed,
   registerLoginFailure, requireAdmin, setSessionCookie,
 } from './auth.js';
-import { DEFAULT_SETTINGS } from './deviceApi.js';
+import { DEFAULT_SETTINGS, latestRelease } from './deviceApi.js';
+import { readApkInfo } from './apk.js';
 
 export const adminApi = express.Router();
 const json = express.json({ limit: '1mb' });
@@ -20,7 +21,7 @@ const EXTENSIONS = {
   mp4: ['VIDEO', 'video/mp4'], m4v: ['VIDEO', 'video/mp4'], mov: ['VIDEO', 'video/quicktime'],
   mkv: ['VIDEO', 'video/x-matroska'], webm: ['VIDEO', 'video/webm'],
 };
-const COMMANDS = new Set(['restart_playlist', 'sync_now']);
+const COMMANDS = new Set(['restart_playlist', 'sync_now', 'update_app']);
 const int = (v) => (v === undefined || v === null || v === '' ? null : Math.round(Number(v)) || null);
 
 // ------------------------------------------------------------------ Sessão
@@ -191,6 +192,7 @@ adminApi.delete('/playlists/:id', (req, res) => {
 
 adminApi.get('/devices', (req, res) => {
   const onlineSince = now() - config.onlineWindowSec * 1000;
+  const latest = latestRelease();
   const rows = db.prepare(`
     SELECT d.*, p.name AS playlist_name FROM devices d LEFT JOIN playlists p ON p.id = d.playlist_id
     ORDER BY d.status = 'pending' DESC, d.name COLLATE NOCASE`).all();
@@ -204,6 +206,8 @@ adminApi.get('/devices', (req, res) => {
     pendingCommand: d.command,
     model: d.model,
     appVersion: d.app_version,
+    appVersionCode: d.app_version_code,
+    updateAvailable: !!latest && d.app_version_code != null && latest.version_code > d.app_version_code,
     lastSeen: d.last_seen,
     lastIp: d.last_ip,
     online: !!d.last_seen && d.last_seen >= onlineSince,
@@ -256,6 +260,79 @@ adminApi.post('/devices/:id/command', json, (req, res) => {
 adminApi.delete('/devices/:id', (req, res) => {
   db.prepare('DELETE FROM devices WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// ------------------------------------------------------------------ Atualização do app das TVs
+
+const releaseRow = (r, latestCode) => ({
+  id: r.id, versionCode: r.version_code, versionName: r.version_name, size: r.size,
+  sha256: r.sha256, createdAt: r.created_at, latest: r.version_code === latestCode,
+});
+
+adminApi.get('/releases', (req, res) => {
+  const latest = latestRelease();
+  const rows = db.prepare('SELECT * FROM app_releases ORDER BY version_code DESC').all();
+  res.json(rows.map((r) => releaseRow(r, latest?.version_code)));
+});
+
+/** Upload do APK em streaming; versão e pacote são lidos do próprio arquivo. */
+adminApi.put('/releases', async (req, res) => {
+  if (!String(req.query.name || '').toLowerCase().endsWith('.apk')) {
+    return res.status(400).json({ error: 'Envie o arquivo .apk do app da TV' });
+  }
+  const max = 300 * 1024 * 1024;
+  const tmp = path.join(releasesDir, `.upload-${crypto.randomUUID()}.apk`);
+  const hash = crypto.createHash('sha256');
+  let size = 0;
+  const counter = new Transform({
+    transform(chunk, _enc, done) {
+      size += chunk.length;
+      hash.update(chunk);
+      done(size > max ? new Error('APK muito grande') : null, chunk);
+    },
+  });
+  try {
+    await pipeline(req, counter, fs.createWriteStream(tmp));
+    const info = readApkInfo(tmp);
+    if (info.packageName !== config.appPackage) {
+      throw new Error(`Este APK é de outro app (${info.packageName}). Esperado: ${config.appPackage}`);
+    }
+    const latest = latestRelease();
+    if (db.prepare('SELECT 1 FROM app_releases WHERE version_code = ?').get(info.versionCode)) {
+      throw new Error(`A versão ${info.versionName} (build ${info.versionCode}) já foi enviada`);
+    }
+    if (latest && info.versionCode < latest.version_code) {
+      throw new Error(`Build ${info.versionCode} é mais antigo que o atual (${latest.version_code}). Aumente o versionCode no app.`);
+    }
+    const digest = hash.digest('hex');
+    const filename = `signage-${info.versionCode}-${digest.slice(0, 8)}.apk`;
+    fs.renameSync(tmp, path.join(releasesDir, filename));
+    db.prepare(`INSERT INTO app_releases (version_code, version_name, package_name, filename, size, sha256, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(info.versionCode, info.versionName, info.packageName, filename, size, digest, now());
+    console.log(`[release] nova versão do app: ${info.versionName} (build ${info.versionCode})`);
+    res.status(201).json({ versionName: info.versionName, versionCode: info.versionCode });
+  } catch (e) {
+    fs.rmSync(tmp, { force: true });
+    if (!res.headersSent) res.status(400).json({ error: e.message });
+  }
+});
+
+adminApi.delete('/releases/:id', (req, res) => {
+  const r = db.prepare('SELECT * FROM app_releases WHERE id = ?').get(req.params.id);
+  if (!r) return res.status(404).json({ error: 'Versão não encontrada' });
+  db.prepare('DELETE FROM app_releases WHERE id = ?').run(r.id);
+  fs.rmSync(path.join(releasesDir, r.filename), { force: true });
+  res.json({ ok: true });
+});
+
+/** Pede a todas as TVs desatualizadas que instalem a versão mais recente. */
+adminApi.post('/devices/update-all', (req, res) => {
+  const latest = latestRelease();
+  if (!latest) return res.status(400).json({ error: 'Nenhuma versão do app enviada ainda' });
+  const r = db.prepare(`UPDATE devices SET command = 'update_app'
+    WHERE status = 'approved' AND app_version_code IS NOT NULL AND app_version_code < ?`).run(latest.version_code);
+  res.json({ ok: true, devices: r.changes });
 });
 
 function safeJson(text) {

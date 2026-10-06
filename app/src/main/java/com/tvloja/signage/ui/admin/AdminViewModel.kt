@@ -53,6 +53,7 @@ class AdminViewModel(private val c: AppContainer) : ViewModel() {
     val playback = c.playlistPlayer.state
     val logs = AppLogger.entries
     val server = c.serverSync.state
+    val update = c.appUpdater.state
 
     private val _selectedId = MutableStateFlow<Long?>(null)
     val selectedId: StateFlow<Long?> = _selectedId.asStateFlow()
@@ -187,6 +188,19 @@ class AdminViewModel(private val c: AppContainer) : ViewModel() {
         }
         c.serverSync.syncNow()
         _message.value = "Sincronizando com o servidor..."
+    }
+
+    fun installUpdate() {
+        c.appUpdater.requestInstall()
+        _message.value = "Iniciando a instalação. Na tela que vai aparecer, aperte ← e OK (Atualizar)."
+    }
+
+    fun canInstallUpdates(): Boolean = c.appUpdater.canInstall()
+
+    fun openInstallPermission() {
+        if (!c.appUpdater.openInstallPermissionSettings()) {
+            _message.value = "Configuração indisponível. Use: adb shell appops set ${appContext.packageName} REQUEST_INSTALL_PACKAGES allow"
+        }
     }
 
     fun disconnectServer() = launchSafe {

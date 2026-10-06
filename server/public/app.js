@@ -73,7 +73,7 @@ async function showApp() {
 }
 
 function switchView(view) {
-  if (!['devices', 'playlists', 'media'].includes(view)) view = 'devices';
+  if (!['devices', 'playlists', 'media', 'releases'].includes(view)) view = 'devices';
   if (state.view === 'playlists' && view !== 'playlists' && state.dirty &&
       !confirm('Há alterações não salvas na playlist. Sair mesmo assim?')) return;
   if (view !== 'playlists') state.dirty = false;
@@ -84,6 +84,7 @@ function switchView(view) {
   if (view === 'devices') loadDevices().catch(fail);
   if (view === 'playlists') renderPlaylistList();
   if (view === 'media') loadMedia().catch(fail);
+  if (view === 'releases') loadReleases().catch(fail);
 }
 
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => switchView(t.dataset.view)));
@@ -161,6 +162,7 @@ function deviceCard(d) {
       <dt>Último erro</dt><dd>${esc(pb.lastError || 'nenhum')}</dd>
       <dt>Aparelho</dt><dd>${esc(d.model || '—')}</dd>
       <dt>App / Tela</dt><dd>${esc(d.appVersion || '—')} • ${esc(st.display || '—')}</dd>
+      ${d.updateAvailable || st.update?.state && st.update.state !== 'IDLE' ? `<dt>Atualização</dt><dd>${updateLabel(d)}</dd>` : ''}
       <dt>IP</dt><dd>${esc(d.lastIp || '—')}</dd>
     </dl>
     <div class="device-controls">
@@ -179,6 +181,7 @@ function deviceCard(d) {
     <div class="device-actions">
       <button class="btn small" data-act="command" data-command="restart_playlist" data-id="${d.id}">⟲ Reiniciar playlist</button>
       <button class="btn small" data-act="command" data-command="sync_now" data-id="${d.id}">Sincronizar</button>
+      ${d.updateAvailable ? `<button class="btn small primary" data-act="command" data-command="update_app" data-id="${d.id}">⬆ Instalar atualização</button>` : ''}
       <button class="btn small" data-act="rename" data-id="${d.id}">Renomear</button>
       <button class="btn small" data-act="block" data-id="${d.id}">${d.status === 'blocked' ? 'Desbloquear' : 'Bloquear'}</button>
       <button class="btn small danger" data-act="delete" data-id="${d.id}">Remover</button>
@@ -245,6 +248,97 @@ setInterval(() => {
     loadDevices().catch(() => {});
   }
 }, 15000);
+
+/** Texto do estado de atualização reportado pela TV. */
+function updateLabel(d) {
+  const u = d.lastStatus?.update || {};
+  const target = u.version ? ` ${esc(u.version)}` : '';
+  switch (u.state) {
+    case 'DOWNLOADING': return `<span class="tag">baixando${target}${u.progress != null ? ` ${u.progress}%` : ''}</span>`;
+    case 'READY': return `<span class="tag ok">pronta para instalar${target}</span>`;
+    case 'INSTALLING': return `<span class="tag warn">aguardando OK na TV${target}</span>`;
+    case 'ERROR': return `<span class="tag err">erro: ${esc(u.error || 'desconhecido')}</span>`;
+    default: return d.updateAvailable ? '<span class="tag">disponível (a TV baixa na próxima sincronização)</span>' : '';
+  }
+}
+
+// ===================================================================== Atualização do app
+
+async function loadReleases() {
+  const [releases, devices] = await Promise.all([api('/releases'), api('/devices')]);
+  state.devices = devices;
+  const latest = releases.find((r) => r.latest);
+  $('#releases').innerHTML = releases.length ? releases.map((r) => `
+    <div class="row">
+      <div class="grow"><strong>${esc(r.versionName)}</strong> <span class="muted small">build ${r.versionCode} • ${bytes(r.size)} • ${new Date(r.createdAt).toLocaleString('pt-BR')}</span></div>
+      ${r.latest ? '<span class="tag ok">atual</span>' : ''}
+      <button class="btn small danger" data-release-delete="${r.id}" data-name="${esc(r.versionName)}">Excluir</button>
+    </div>`).join('') : '<div class="empty small">Nenhuma versão enviada ainda.</div>';
+
+  const tvs = devices.filter((d) => d.status === 'approved');
+  $('#release-devices').innerHTML = tvs.length ? tvs.map((d) => `
+    <div class="row">
+      <div class="grow"><strong>${esc(d.name)}</strong> <span class="muted small">${d.online ? '● online' : '○ offline'} • versão ${esc(d.appVersion || '?')}</span>
+        <div>${updateLabel(d) || (latest ? '<span class="tag ok">atualizada</span>' : '')}</div></div>
+      ${d.updateAvailable ? `<button class="btn small primary" data-update="${d.id}">Instalar nesta TV</button>` : ''}
+    </div>`).join('') : '<div class="empty small">Nenhuma TV conectada.</div>';
+  $('#update-all').disabled = !tvs.some((d) => d.updateAvailable);
+}
+
+$('#view-releases').addEventListener('click', async (e) => {
+  const del = e.target.closest('[data-release-delete]');
+  const upd = e.target.closest('[data-update]');
+  try {
+    if (del) {
+      if (!confirm(`Excluir a versão ${del.dataset.name}? TVs que ainda não instalaram deixam de recebê-la.`)) return;
+      await api(`/releases/${del.dataset.releaseDelete}`, { method: 'DELETE' });
+    } else if (upd) {
+      await api(`/devices/${upd.dataset.update}/command`, { method: 'POST', body: { command: 'update_app' } });
+      toast('Pedido enviado. Em até 1 minuto a TV mostra a confirmação: no controle, aperte ← e OK (Atualizar).');
+    } else if (e.target.id === 'update-all') {
+      const r = await api('/devices/update-all', { method: 'POST' });
+      toast(`Pedido enviado para ${r.devices} TV(s). Em cada uma, aperte ← e OK (Atualizar) no controle.`);
+    } else return;
+    await loadReleases();
+  } catch (err) { fail(err); }
+});
+
+const apkDrop = $('#apk-drop');
+$('#apk-input').addEventListener('change', (e) => { if (e.target.files[0]) uploadApk(e.target.files[0]); e.target.value = ''; });
+['dragenter', 'dragover'].forEach((ev) => apkDrop.addEventListener(ev, (e) => { e.preventDefault(); apkDrop.classList.add('over'); }));
+['dragleave', 'drop'].forEach((ev) => apkDrop.addEventListener(ev, (e) => { e.preventDefault(); apkDrop.classList.remove('over'); }));
+apkDrop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) uploadApk(e.dataTransfer.files[0]); });
+
+function uploadApk(file) {
+  const row = document.createElement('div');
+  row.className = 'upload';
+  row.innerHTML = `<span>${esc(file.name)} — ${bytes(file.size)}</span> <span class="pct">0%</span><div class="bar"><span></span></div>`;
+  $('#apk-upload').prepend(row);
+  const xhr = new XMLHttpRequest();
+  xhr.open('PUT', `/api/releases?name=${encodeURIComponent(file.name)}`);
+  xhr.setRequestHeader('X-Requested-With', 'signage');
+  xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    const pct = Math.round((e.loaded / e.total) * 100);
+    row.querySelector('.pct').textContent = `${pct}%`;
+    row.querySelector('.bar span').style.width = `${pct}%`;
+  };
+  xhr.onload = () => {
+    const data = JSON.parse(xhr.responseText || '{}');
+    if (xhr.status < 300) {
+      row.classList.add('done');
+      row.querySelector('.pct').textContent = `versão ${data.versionName} (build ${data.versionCode}) enviada ✓`;
+      toast(`Versão ${data.versionName} disponível. As TVs vão baixá-la em segundo plano.`);
+      loadReleases().catch(fail);
+    } else {
+      row.classList.add('failed');
+      row.querySelector('.pct').textContent = `falhou: ${data.error || xhr.status}`;
+    }
+  };
+  xhr.onerror = () => { row.classList.add('failed'); row.querySelector('.pct').textContent = 'falha de conexão'; };
+  xhr.send(file);
+}
 
 // ===================================================================== Playlists
 

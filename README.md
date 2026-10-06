@@ -183,6 +183,9 @@ adb connect 192.168.0.50:5555        # aceite "Permitir depuração" na TV
 adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
+> Se a instalação falhar sem mostrar o motivo (`failed to install ...:`), repita com `--no-streaming`:
+> `adb install -r --no-streaming app/build/outputs/apk/release/app-release.apk` — necessário em algumas TVs com Android 9.
+
 ### Opção B — Pendrive
 
 Copie o APK para um pendrive e instale-o na TV com um gerenciador de arquivos (por exemplo, "File Commander" ou
@@ -411,6 +414,27 @@ não pode ser "clonada" por outro aparelho. Os arquivos de mídia têm nomes ale
 quem tiver o link — adequado para anúncios.
 
 > Android 7.0 (muito raro em TVs TCL) não reconhece certificados Let's Encrypt. Android 7.1.1 ou superior funciona.
+
+### 10.4 Atualizar o app das TVs pelo painel (sem cabo/ADB)
+
+A partir da versão **1.2.0**, novas versões do app são instaladas pelo painel:
+
+1. Aumente `versionCode` (e `versionName`) em `app/build.gradle.kts` e gere o APK: `gradlew assembleRelease`.
+2. No painel, aba **App**, arraste o `app/build/outputs/apk/release/app-release.apk`.
+   A versão é lida do próprio arquivo; APKs de outro app, repetidos ou mais antigos são recusados.
+3. As TVs baixam o APK em segundo plano (autenticadas, com verificação SHA-256) — o status aparece no painel.
+4. Clique em **Instalar nesta TV** (ou **Atualizar todas as TVs**).
+5. Na TV aparece *"Deseja atualizar este app?"*. O foco começa em **Cancelar**: aperte **← e depois OK**.
+   O app é atualizado e reaberto sozinho, mantendo playlist e configurações.
+
+Na **primeira** atualização a TV abre a tela *"Instalar apps desconhecidos"* com o Digital Signage selecionado:
+aperte **OK** para permitir e repita o passo 4. Pelo computador também dá:
+`adb shell appops set com.tvloja.signage REQUEST_INSTALL_PACKAGES allow`.
+
+> ⚠ **Chave de assinatura:** o Android só aceita a atualização se o APK novo for assinado com a **mesma chave**
+> do instalado. Os APKs deste projeto são assinados com a chave de debug deste computador:
+> `%USERPROFILE%\.android\debug.keystore`. **Faça backup desse arquivo.** Se gerar o APK em outro computador
+> (ou perder a chave), as TVs recusam a atualização e será preciso reinstalar o app via ADB, perdendo os dados locais.
 
 ---
 

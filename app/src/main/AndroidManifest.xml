@@ -15,6 +15,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Necessária a partir do Android 10 para abrir a Activity após o boot / crash (veja BootReceiver). -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Atualização do app pelo painel web (o Android sempre pede confirmação na tela). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Leitura de mídias do armazenamento compartilhado e de pendrives USB. -->
     <uses-permission
@@ -70,6 +72,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity-alias>
+
+        <receiver
+            android:name=".update.InstallResultReceiver"
+            android:exported="false" />
 
         <receiver
             android:name=".boot.BootReceiver"

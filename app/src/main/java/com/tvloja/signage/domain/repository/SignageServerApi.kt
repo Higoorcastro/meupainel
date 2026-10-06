@@ -18,6 +18,7 @@ interface SignageServerApi {
 data class DeviceReport(
     val model: String,
     val appVersion: String,
+    val appVersionCode: Int,
     val playbackStatus: String,
     val currentMedia: String?,
     val index: Int,
@@ -29,6 +30,21 @@ data class DeviceReport(
     val downloadsPending: Int,
     val localItems: Int,
     val uptimeSec: Long,
+    /** Estado da atualização do app (IDLE, DOWNLOADING, READY, INSTALLING, ERROR). */
+    val updateState: String,
+    val updateVersion: String?,
+    val updateProgress: Int?,
+    val updateError: String?,
+)
+
+/** Nova versão do app disponível no painel. */
+data class AppUpdateOffer(
+    val versionCode: Int,
+    val versionName: String,
+    val sizeBytes: Long,
+    val sha256: String,
+    /** Caminho relativo ao servidor; o download exige a autenticação da TV. */
+    val downloadPath: String,
 )
 
 /** Configurações de exibição definidas por TV no painel. */
@@ -47,6 +63,7 @@ sealed interface ServerSyncResponse {
         val tvName: String,
         val playlist: List<RemoteMediaSpec>,
         val settings: RemoteSettings,
+        val appUpdate: AppUpdateOffer?,
         val command: String?,
     ) : ServerSyncResponse
 

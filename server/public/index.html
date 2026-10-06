@@ -27,6 +27,7 @@
         <button class="tab active" data-view="devices">TVs</button>
         <button class="tab" data-view="playlists">Playlists</button>
         <button class="tab" data-view="media">Mídias</button>
+        <button class="tab" data-view="releases">App</button>
       </nav>
       <button id="logout" class="btn ghost">Sair</button>
     </header>
@@ -78,6 +79,32 @@
         </label>
         <div id="uploads" class="uploads"></div>
         <div id="media-grid" class="media-grid"></div>
+      </section>
+
+      <!-- Atualização do app das TVs -->
+      <section id="view-releases" class="view hidden">
+        <div class="section-head">
+          <h1>Atualização do app</h1>
+          <button id="update-all" class="btn primary">Atualizar todas as TVs</button>
+        </div>
+        <label id="apk-drop" class="dropzone">
+          <input id="apk-input" type="file" accept=".apk" hidden>
+          <strong>Arraste o arquivo app-release.apk para cá</strong>
+          <span class="muted">A versão é lida do próprio arquivo. As TVs baixam em segundo plano e instalam quando você mandar.</span>
+        </label>
+        <div id="apk-upload" class="uploads"></div>
+        <div class="releases-layout">
+          <div class="card">
+            <h2>TVs</h2>
+            <div id="release-devices"></div>
+          </div>
+          <div class="card">
+            <h2>Versões enviadas</h2>
+            <div id="releases"></div>
+          </div>
+        </div>
+        <p class="muted small">Ao instalar, a TV mostra "Deseja atualizar este app?". O foco começa em <strong>Cancelar</strong>: no controle, aperte <strong>← e depois OK</strong> (Atualizar).
+          Na 1ª vez a TV também pode pedir para permitir "instalar apps desconhecidos" para o Digital Signage.</p>
       </section>
     </main>
   </div>
