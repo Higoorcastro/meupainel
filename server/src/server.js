@@ -37,5 +37,5 @@ if (!config.adminPassword) {
 }
 
 app.listen(config.port, () => {
-  console.log(`[server] Digital Signage rodando na porta ${config.port} (dados em ${config.dataDir})`);
+  console.log(`[server] MeuPainel rodando na porta ${config.port} (dados em ${config.dataDir})`);
 });

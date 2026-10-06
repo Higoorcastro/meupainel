@@ -47,7 +47,7 @@ data class UpdateState(
  * 3. quando o painel manda instalar (ou pelo botão na TV), usa o instalador oficial do Android
  *    (PackageInstaller). O Android pede confirmação na tela — basta apertar OK no controle.
  *
- * Pré-requisito (Android 8+): permitir "instalar apps desconhecidos" para o Digital Signage.
+ * Pré-requisito (Android 8+): permitir "instalar apps desconhecidos" para o MeuPainel.
  */
 class AppUpdater(
     private val context: Context,
@@ -197,7 +197,7 @@ class AppUpdater(
         val current = _state.value
         if (!canInstall()) {
             AppLogger.w("Atualização bloqueada: falta permitir 'instalar apps desconhecidos'")
-            _state.value = current.copy(error = "Permita \"instalar apps desconhecidos\" para o Digital Signage nas configurações da TV")
+            _state.value = current.copy(error = "Permita \"instalar apps desconhecidos\" para o MeuPainel nas configurações da TV")
             openInstallPermissionSettings()
             return
         }

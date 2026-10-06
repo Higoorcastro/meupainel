@@ -226,7 +226,7 @@ fun AdminScreen(
 @Composable
 private fun Header(playback: PlaybackState) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-        Text("DIGITAL SIGNAGE", fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+        Text("MEUPAINEL", fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
         Spacer(Modifier.width(20.dp))
         val color = when (playback.status) {
             PlaybackStatus.PLAYING -> SignageColors.Ok

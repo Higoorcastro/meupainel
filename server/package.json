@@ -1,7 +1,7 @@
 {
   "name": "signage-server",
   "version": "1.0.0",
-  "description": "Servidor central do Digital Signage: painel web, API das TVs e armazenamento de mídias",
+  "description": "Servidor central do MeuPainel: painel web, API das TVs e armazenamento de mídias",
   "type": "module",
   "private": true,
   "engines": {

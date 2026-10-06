@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Envia o servidor do Digital Signage para a VPS e instala/atualiza com um único comando.
+  Envia o servidor do MeuPainel para a VPS e instala/atualiza com um único comando.
 
 .DESCRIPTION
   1. Empacota a pasta server/ (sem .env, backups e arquivos locais);

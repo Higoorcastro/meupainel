@@ -156,7 +156,7 @@ class AdminViewModel(private val c: AppContainer) : ViewModel() {
         AutoStart.setLauncherMode(appContext, enabled)
         refreshStatus()
         _message.value = if (enabled) {
-            "Modo launcher ativado. Pressione HOME e escolha \"Digital Signage\" como padrão (se a TV perguntar)."
+            "Modo launcher ativado. Pressione HOME e escolha \"MeuPainel\" como padrão (se a TV perguntar)."
         } else "Modo launcher desativado."
     }
 

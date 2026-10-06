@@ -1,4 +1,4 @@
-# Digital Signage para Android TV (TCL)
+# MeuPainel — Digital Signage para Android TV (TCL)
 
 Aplicativo de painel de anúncios para Android TV / Google TV. Reproduz em loop, em tela cheia, uma playlist de
 imagens (JPG, JPEG, PNG, WebP) e vídeos (MP4 H.264, H.265/HEVC se o hardware suportar), com painel administrativo
@@ -193,7 +193,7 @@ Copie o APK para um pendrive e instale-o na TV com um gerenciador de arquivos (p
 
 ### Após instalar
 
-O app aparece na tela inicial da TV como **Digital Signage** (banner azul). Na primeira abertura a playlist está
+O app aparece na tela inicial da TV como **MeuPainel** (banner azul). Na primeira abertura a playlist está
 vazia e a TV mostra as instruções.
 
 ## 6. Configurações recomendadas da TV (importante para funcionar 24h)
@@ -209,7 +209,7 @@ vazia e a TV mostra as instruções.
 O Android 10+ **não permite** que um app em segundo plano abra a própria tela. Por isso existem três camadas:
 
 1. **Modo launcher (o mais confiável).** Em *Administração › Configurações › Modo launcher*, escolha **Ativado**.
-   Depois pressione HOME e, se a TV perguntar, escolha **Digital Signage** e "Sempre". A TV abre o app ao ligar e
+   Depois pressione HOME e, se a TV perguntar, escolha **MeuPainel** e "Sempre". A TV abre o app ao ligar e
    ao pressionar HOME. Para voltar ao launcher original, desative a opção no painel.
    > Algumas Google TV não oferecem a troca de launcher. Nesse caso use a opção 2.
 2. **Abertura no boot com a permissão de sobreposição.** O `BootReceiver` abre o player após o boot e ao voltar
@@ -427,7 +427,7 @@ A partir da versão **1.2.0**, novas versões do app são instaladas pelo painel
 5. Na TV aparece *"Deseja atualizar este app?"*. O foco começa em **Cancelar**: aperte **← e depois OK**.
    O app é atualizado e reaberto sozinho, mantendo playlist e configurações.
 
-Na **primeira** atualização a TV abre a tela *"Instalar apps desconhecidos"* com o Digital Signage selecionado:
+Na **primeira** atualização a TV abre a tela *"Instalar apps desconhecidos"* com o MeuPainel selecionado:
 aperte **OK** para permitir e repita o passo 4. Pelo computador também dá:
 `adb shell appops set com.tvloja.signage REQUEST_INSTALL_PACKAGES allow`.
 

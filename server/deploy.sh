@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-#  Digital Signage — instalação, inicialização e atualização na VPS
+#  MeuPainel — instalação, inicialização e atualização na VPS
 #
 #  Uso (dentro da pasta do servidor, ex.: ~/signage):
 #    bash deploy.sh            instala na 1ª vez / atualiza e reinicia nas próximas
